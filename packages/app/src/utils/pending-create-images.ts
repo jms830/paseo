@@ -1,5 +1,5 @@
 import type { StreamItem, UserMessageImageAttachment } from "@/types/stream";
-import type { AgentAttachment } from "@server/shared/messages";
+import type { AgentAttachment } from "@getpaseo/protocol/messages";
 
 interface MergePendingCreateImagesParams {
   streamItems: StreamItem[];

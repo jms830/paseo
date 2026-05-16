@@ -31,7 +31,8 @@
     "mime-types": "^2.1.35",
     "tree-kill": "^1.2.2",
     "ws": "^8.14.2",
-    "yaml": "^2.8.4"
+    "yaml": "^2.8.4",
+    "@getpaseo/protocol": "0.1.81"
   },
   "devDependencies": {
     "@types/mime-types": "^3.0.1",

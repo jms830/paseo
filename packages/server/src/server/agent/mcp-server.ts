@@ -43,7 +43,7 @@ import { WaitForAgentTracker } from "./wait-for-agent-tracker.js";
 import { scheduleAgentMetadataGeneration } from "./agent-metadata-generator.js";
 import type { VoiceCallerContext, VoiceSpeakHandler } from "../voice-types.js";
 import { expandUserPath, isSameOrDescendantPath, resolvePathFromBase } from "../path-utils.js";
-import { PARENT_AGENT_ID_LABEL } from "../../shared/agent-labels.js";
+import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import type { TerminalManager } from "../../terminal/terminal-manager.js";
 import type {
   AgentWorktreeSetupContinuation,
@@ -56,10 +56,11 @@ import {
   ScheduleRunSchema,
   ScheduleSummarySchema,
   StoredScheduleSchema,
-} from "../schedule/types.js";
-import type { ScheduleCadence, UpdateScheduleInput } from "../schedule/types.js";
+  type ScheduleCadence,
+  type UpdateScheduleInput,
+} from "@getpaseo/protocol/schedule/types";
 import type { ProviderDefinition } from "./provider-registry.js";
-import { getAgentProviderDefinition } from "./provider-manifest.js";
+import { getAgentProviderDefinition } from "@getpaseo/protocol/provider-manifest";
 import { resolveAndValidateCreateAgentMode } from "./create-agent-mode.js";
 import { resolveSnapshotCwd } from "./provider-snapshot-manager.js";
 import {

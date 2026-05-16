@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StreamItem } from "@/types/stream";
 import { mergePendingCreateImages } from "./pending-create-images";
-import type { AgentAttachment } from "@server/shared/messages";
+import type { AgentAttachment } from "@getpaseo/protocol/messages";
 
 function userMessage(params: {
   id: string;
