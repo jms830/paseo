@@ -27,7 +27,11 @@ import {
 import { applyMutableProviderConfigToOverrides } from "../daemon-config-store.js";
 import type { MutableDaemonConfig } from "../daemon-config-store.js";
 
-const DEFAULT_REFRESH_TIMEOUT_MS = 30_000;
+// MCP-heavy providers (omp/pi with many configured MCP servers, opencode) can
+// take well over 30s to start an RPC session and enumerate models/commands when
+// several providers refresh concurrently. Use a generous budget so those probes
+// resolve to available instead of erroring out under contention.
+const DEFAULT_REFRESH_TIMEOUT_MS = 90_000;
 
 type ProviderSnapshotChangeListener = (entries: ProviderSnapshotEntry[], cwd: string) => void;
 
@@ -520,9 +524,16 @@ export class ProviderSnapshotManager {
   }
 
   private async loadProviders(options: ProviderLoadOptions): Promise<void> {
-    await Promise.allSettled(
-      options.providers.map((provider) => this.loadProvider({ ...options, provider })),
-    );
+    // Probe providers sequentially rather than all at once. MCP-heavy providers
+    // (omp/pi with many configured MCP servers, opencode) each spawn an RPC
+    // session and connect every configured MCP server during their probe;
+    // running them concurrently starves CPU/IO on smaller hosts and makes
+    // availability probes flake with spurious timeouts/crashes. Those failures
+    // are then cached and gate on-demand model fetches. Sequential probing
+    // trades a longer total refresh for reliable per-provider results.
+    for (const provider of options.providers) {
+      await this.loadProvider({ ...options, provider }).catch(() => undefined);
+    }
   }
 
   private loadProvider(options: ProviderLoadOptions & { provider: AgentProvider }): Promise<void> {
