@@ -36,6 +36,7 @@ import { canCloseRightSidebarGesture } from "@/utils/sidebar-animation-state";
 import { HEADER_INNER_HEIGHT } from "@/constants/layout";
 import { GitDiffPane } from "@/git/diff-pane";
 import { FileExplorerPane } from "./file-explorer-pane";
+import { ProjectNotesPanel } from "@/components/project-notes-panel";
 import { useKeyboardShiftStyle } from "@/hooks/use-keyboard-shift-style";
 import { useWindowControlsPadding } from "@/utils/desktop-window";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
@@ -510,6 +511,13 @@ function ExplorerSidebarContent({
             onTabPress={onTabPress}
             testID="explorer-tab-files"
           />
+          <ExplorerTabButton
+            tab="notes"
+            active={resolvedTab === "notes"}
+            label="Notes"
+            onTabPress={onTabPress}
+            testID="explorer-tab-notes"
+          />
           {isGit && showPrTab && (
             <ExplorerTabButton
               tab="pr"
@@ -554,6 +562,11 @@ function ExplorerSidebarContent({
             onOpenFile={onOpenFile}
           />
         )}
+        <ProjectNotesPanel
+          active={resolvedTab === "notes"}
+          serverId={serverId}
+          cwd={workspaceRoot}
+        />
         {resolvedTab === "pr" && (
           <PrTabContent
             serverId={serverId}

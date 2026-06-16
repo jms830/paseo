@@ -13,6 +13,9 @@ import type { ProjectRegistry, WorkspaceRegistry } from "./workspace-registry.js
 import type { FileBackedChatService } from "./chat/chat-service.js";
 import type { LoopService } from "./loop-service.js";
 import type { ScheduleService } from "./schedule/service.js";
+import { SkillsCatalogService } from "./skills-catalog/service.js";
+import { GitIdentityService } from "./git-identity/service.js";
+import { TunnelService } from "./tunnel/service.js";
 import type { CheckoutDiffManager, CheckoutDiffMetrics } from "./checkout-diff-manager.js";
 import type { DaemonConfigStore, MutableDaemonConfig } from "./daemon-config-store.js";
 import {
@@ -400,6 +403,9 @@ export class VoiceAssistantWebSocketServer {
   private readonly chatService: FileBackedChatService;
   private readonly loopService: LoopService;
   private readonly scheduleService: ScheduleService;
+  private readonly skillsCatalogService = new SkillsCatalogService();
+  private readonly gitIdentityService = new GitIdentityService();
+  private readonly tunnelService = new TunnelService();
   private readonly checkoutDiffManager: CheckoutDiffManager;
   private readonly github: GitHubService;
   private readonly workspaceGitService: WorkspaceGitService;
@@ -988,6 +994,9 @@ export class VoiceAssistantWebSocketServer {
       chatService: this.chatService,
       loopService: this.loopService,
       scheduleService: this.scheduleService,
+      skillsCatalogService: this.skillsCatalogService,
+      gitIdentityService: this.gitIdentityService,
+      tunnelService: this.tunnelService,
       checkoutDiffManager: this.checkoutDiffManager,
       github: this.github,
       workspaceGitService: this.workspaceGitService,
@@ -1202,6 +1211,10 @@ export class VoiceAssistantWebSocketServer {
         daemonSelfUpdate: true,
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: true,
+        // COMPAT(skillsCatalog|gitIdentity|tunnel): OpenChamber feature RPCs; drop gates once host floor ships them.
+        skillsCatalog: true,
+        gitIdentity: true,
+        tunnel: true,
       },
     };
   }

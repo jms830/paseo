@@ -50,6 +50,8 @@ import { ProvidersSection } from "@/screens/settings/providers-section";
 import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { SettingsSection } from "@/screens/settings/settings-section";
+import { SkillsSection } from "@/screens/settings/skills-section";
+import { TunnelSection } from "@/screens/settings/tunnel-section";
 import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import type { HostConnection, HostProfile } from "@/types/host-connection";
@@ -252,6 +254,9 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
   const host = useHostProfile(serverId);
   const isConnected = useHostRuntimeIsConnected(serverId);
+  const skillsEnabled = useSessionStore(
+    (s) => s.sessions[serverId]?.serverInfo?.features?.skillsCatalog === true,
+  );
 
   if (!host) {
     return <HostNotFound />;
@@ -269,6 +274,7 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
           <Text style={styles.emptyText}>{t("settings.host.agents.unavailable")}</Text>
         </View>
       )}
+      {skillsEnabled ? <SkillsSection serverId={serverId} /> : null}
     </View>
   );
 }
@@ -338,6 +344,9 @@ export function HostSettingsPage({
 }) {
   const host = useHostProfile(serverId);
   const isLocalDaemon = useIsLocalDaemon(serverId);
+  const tunnelEnabled = useSessionStore(
+    (s) => s.sessions[serverId]?.serverInfo?.features?.tunnel === true,
+  );
 
   if (!host) {
     return <HostNotFound />;
@@ -357,6 +366,7 @@ export function HostSettingsPage({
       {isLocalDaemon ? <LocalDaemonSection /> : null}
 
       {!isLocalDaemon ? <UpdateDaemonCard host={host} /> : null}
+      {tunnelEnabled ? <TunnelSection serverId={serverId} /> : null}
 
       <RemoveHostSection host={host} isLocalDaemon={isLocalDaemon} onRemoved={onHostRemoved} />
     </View>

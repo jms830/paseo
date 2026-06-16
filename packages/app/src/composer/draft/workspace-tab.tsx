@@ -18,6 +18,7 @@ import type { CreateAgentInitialValues } from "@/hooks/use-agent-form-state";
 import { useDraftAgentCreateFlow, type DraftCreateAttempt } from "@/composer/draft/create-flow";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { buildWorkspaceDraftAgentConfig } from "@/screens/workspace/workspace-draft-agent-config";
+import { WorkspaceDraftMultiRun } from "@/components/multi-run-launcher";
 import { buildDraftStoreKey } from "@/stores/draft-keys";
 import { usePanelStore } from "@/stores/panel-store";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
@@ -327,6 +328,7 @@ export function WorkspaceDraftAgentTab({
     id: w.id,
   }));
   const workspaceDirectory = workspaceFields?.workspaceDirectory || null;
+  const draftMultiRunAuthority = useMemo(() => ({ workspaceId }), [workspaceId]);
   const draftSetup = initialSetup ?? null;
   const draftWorkingDirectory = resolveDraftWorkingDirectory({
     workspaceDirectory,
@@ -687,6 +689,11 @@ export function WorkspaceDraftAgentTab({
                   <Text style={styles.errorText}>{formErrorMessage}</Text>
                 </View>
               ) : null}
+              <WorkspaceDraftMultiRun
+                serverId={serverId}
+                cwd={workspaceDirectory}
+                authority={draftMultiRunAuthority}
+              />
             </View>
           </ScrollView>
         )}

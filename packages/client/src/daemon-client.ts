@@ -420,6 +420,38 @@ type LoopInspectPayload = Extract<
 >["payload"];
 type LoopLogsPayload = Extract<SessionOutboundMessage, { type: "loop/logs/response" }>["payload"];
 type LoopStopPayload = Extract<SessionOutboundMessage, { type: "loop/stop/response" }>["payload"];
+type SkillsListPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/list/response" }
+>["payload"];
+type SkillsScanPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/scan/response" }
+>["payload"];
+type SkillsInstallPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/install/response" }
+>["payload"];
+type GitIdentityGetPayload = Extract<
+  SessionOutboundMessage,
+  { type: "git-identity/get/response" }
+>["payload"];
+type GitIdentitySetPayload = Extract<
+  SessionOutboundMessage,
+  { type: "git-identity/set/response" }
+>["payload"];
+type TunnelStatusPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/status/response" }
+>["payload"];
+type TunnelStartPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/start/response" }
+>["payload"];
+type TunnelStopPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/stop/response" }
+>["payload"];
 type ScheduleCreatePayload = Extract<
   SessionOutboundMessage,
   { type: "schedule/create/response" }
@@ -3148,7 +3180,7 @@ export class DaemonClient {
 
   async checkoutCommit(
     cwd: string,
-    input: { message?: string; addAll?: boolean },
+    input: { message?: string; addAll?: boolean; gitmoji?: boolean },
     requestId?: string,
   ): Promise<CheckoutCommitPayload> {
     return this.sendCorrelatedSessionRequest({
@@ -3158,6 +3190,7 @@ export class DaemonClient {
         cwd,
         message: input.message,
         addAll: input.addAll,
+        ...(input.gitmoji !== undefined ? { gitmoji: input.gitmoji } : {}),
       },
       responseType: "checkout_commit_response",
     });
@@ -4583,6 +4616,113 @@ export class DaemonClient {
         id: normalized.id,
       },
       responseType: "loop/stop/response",
+    });
+  }
+
+  async skillsList(requestId?: string): Promise<SkillsListPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "skills/list",
+      },
+      responseType: "skills/list/response",
+      timeout: 10000,
+    });
+  }
+
+  async skillsScan(input: {
+    source: string;
+    subpath?: string;
+    requestId?: string;
+  }): Promise<SkillsScanPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "skills/scan",
+        source: input.source,
+        ...(input.subpath ? { subpath: input.subpath } : {}),
+      },
+      responseType: "skills/scan/response",
+      timeout: 120000,
+    });
+  }
+
+  async skillsInstall(input: {
+    source: string;
+    subpath?: string;
+    skillDirs: string[];
+    overwrite?: boolean;
+    requestId?: string;
+  }): Promise<SkillsInstallPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "skills/install",
+        source: input.source,
+        skillDirs: input.skillDirs,
+        ...(input.subpath ? { subpath: input.subpath } : {}),
+        ...(input.overwrite !== undefined ? { overwrite: input.overwrite } : {}),
+      },
+      responseType: "skills/install/response",
+      timeout: 120000,
+    });
+  }
+
+  async gitIdentityGet(cwd: string, requestId?: string): Promise<GitIdentityGetPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "git-identity/get",
+        cwd,
+      },
+      responseType: "git-identity/get/response",
+      timeout: 10000,
+    });
+  }
+
+  async gitIdentitySet(input: {
+    cwd: string;
+    name: string;
+    email: string;
+    requestId?: string;
+  }): Promise<GitIdentitySetPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "git-identity/set",
+        cwd: input.cwd,
+        name: input.name,
+        email: input.email,
+      },
+      responseType: "git-identity/set/response",
+      timeout: 15000,
+    });
+  }
+
+  async tunnelStatus(requestId?: string): Promise<TunnelStatusPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/status" },
+      responseType: "tunnel/status/response",
+      timeout: 10000,
+    });
+  }
+
+  async tunnelStart(requestId?: string): Promise<TunnelStartPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/start" },
+      responseType: "tunnel/start/response",
+      timeout: 45000,
+    });
+  }
+
+  async tunnelStop(requestId?: string): Promise<TunnelStopPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/stop" },
+      responseType: "tunnel/stop/response",
+      timeout: 10000,
     });
   }
 

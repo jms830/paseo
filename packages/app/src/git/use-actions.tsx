@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
 import { type CheckoutGitActionStatus, useCheckoutGitActionsStore } from "@/git/actions-store";
 import { type CheckoutStatusPayload, useCheckoutStatusQuery } from "@/git/use-status-query";
+import { useAppSettings } from "@/hooks/use-settings";
 import { type CheckoutPrStatusPayload, useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
 import {
   buildGitActions,
@@ -221,6 +222,8 @@ export function useGitActions({ serverId, cwd, icons }: UseGitActionsInput): Use
   const { t } = useTranslation();
   const toast = useToast();
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
+  const { settings: appSettings } = useAppSettings();
+  const commitGitmoji = appSettings.commitGitmoji;
   const [postShipArchiveSuggested, setPostShipArchiveSuggested] = useState(false);
   const [shipDefault, setShipDefault] = useState<"merge" | "pr">("pr");
 
@@ -377,7 +380,7 @@ export function useGitActions({ serverId, cwd, icons }: UseGitActionsInput): Use
 
   // Handlers
   const handleCommit = useCallback(() => {
-    void runCommit({ serverId, cwd })
+    void runCommit({ serverId, cwd, gitmoji: commitGitmoji })
       .then(() => {
         toastActionSuccess(t("workspace.git.actions.commit.success"));
         return;
@@ -385,7 +388,7 @@ export function useGitActions({ serverId, cwd, icons }: UseGitActionsInput): Use
       .catch((err) => {
         toastActionError(err, t("workspace.git.actions.toasts.failedCommit"));
       });
-  }, [cwd, runCommit, serverId, t, toastActionError, toastActionSuccess]);
+  }, [commitGitmoji, cwd, runCommit, serverId, t, toastActionError, toastActionSuccess]);
 
   const handlePull = useCallback(() => {
     void runPull({ serverId, cwd })
