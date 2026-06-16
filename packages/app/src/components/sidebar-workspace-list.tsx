@@ -45,6 +45,8 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  Folder,
+  FolderMinus,
   FolderPlus,
   GitPullRequest,
   Settings,
@@ -77,6 +79,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { SyncedLoader } from "@/components/synced-loader";
 import { useToast } from "@/contexts/toast-context";
@@ -122,6 +126,12 @@ import {
   getIsElectron,
 } from "@/constants/platform";
 import { getDesktopHost } from "@/desktop/host";
+import {
+  useWorkspaceFoldersStore,
+  buildWorkspaceFolderScopeKey,
+  type WorkspaceFolder,
+} from "@/stores/workspace-folders-store";
+import { WorkspaceFolderSection } from "@/components/workspace-folder-section";
 
 const workspaceKeyExtractor = (workspace: SidebarWorkspaceEntry) => workspace.workspaceKey;
 
@@ -139,6 +149,8 @@ const ThemedCircleAlert = withUnistyles(CircleAlert);
 const ThemedCircleCheck = withUnistyles(CircleCheck);
 const ThemedSyncedLoader = withUnistyles(SyncedLoader);
 const ThemedFolderPlus = withUnistyles(FolderPlus);
+const ThemedFolder = withUnistyles(Folder);
+const ThemedFolderMinus = withUnistyles(FolderMinus);
 const ThemedMoreVertical = withUnistyles(MoreVertical);
 const ThemedTrash2 = withUnistyles(Trash2);
 const ThemedSettings = withUnistyles(Settings);
@@ -542,6 +554,12 @@ const renameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColor
 const openInNewWindowLeadingIcon = (
   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
 );
+const folderLeadingIcon = <ThemedFolder size={14} uniProps={foregroundMutedColorMapping} />;
+const folderPlusLeadingIcon = <ThemedFolderPlus size={14} uniProps={foregroundMutedColorMapping} />;
+const folderMinusLeadingIcon = (
+  <ThemedFolderMinus size={14} uniProps={foregroundMutedColorMapping} />
+);
+const EMPTY_WORKSPACE_FOLDERS: WorkspaceFolder[] = [];
 
 function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
   return (
@@ -688,6 +706,11 @@ function WorkspaceRowRightGroup({
             {onArchive ? (
               <WorkspaceKebabMenu
                 workspaceKey={workspace.workspaceKey}
+                scopeKey={
+                  workspace.serverId
+                    ? buildWorkspaceFolderScopeKey(workspace.serverId, workspace.projectKey)
+                    : ""
+                }
                 onCopyPath={onCopyPath}
                 onCopyBranchName={onCopyBranchName}
                 onRename={onRename}
@@ -706,8 +729,34 @@ function WorkspaceRowRightGroup({
   );
 }
 
+function WorkspaceFolderMoveItem({
+  folder,
+  scopeKey,
+  workspaceKey,
+  onMove,
+}: {
+  folder: WorkspaceFolder;
+  scopeKey: string;
+  workspaceKey: string;
+  onMove: (scopeKey: string, folderId: string, workspaceKey: string) => void;
+}) {
+  const handleSelect = useCallback(() => {
+    onMove(scopeKey, folder.id, workspaceKey);
+  }, [onMove, scopeKey, folder.id, workspaceKey]);
+  return (
+    <DropdownMenuItem
+      testID={`sidebar-workspace-menu-move-folder-${folder.id}`}
+      leading={folderLeadingIcon}
+      onSelect={handleSelect}
+    >
+      {`Move to "${folder.name}"`}
+    </DropdownMenuItem>
+  );
+}
+
 function WorkspaceKebabMenu({
   workspaceKey,
+  scopeKey,
   onCopyPath,
   onCopyBranchName,
   onRename,
@@ -719,6 +768,7 @@ function WorkspaceKebabMenu({
   archiveShortcutKeys,
 }: {
   workspaceKey: string;
+  scopeKey: string;
   onCopyPath?: () => void;
   onCopyBranchName?: () => void;
   onRename?: () => void;
@@ -734,66 +784,147 @@ function WorkspaceKebabMenu({
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
     [archiveShortcutKeys],
   );
+
+  const selectScopeFolders = useCallback(
+    (state: { foldersMap: Record<string, WorkspaceFolder[]> }) =>
+      scopeKey ? (state.foldersMap[scopeKey] ?? EMPTY_WORKSPACE_FOLDERS) : EMPTY_WORKSPACE_FOLDERS,
+    [scopeKey],
+  );
+  const folders = useWorkspaceFoldersStore(selectScopeFolders);
+  const addWorkspaceToFolder = useWorkspaceFoldersStore((state) => state.addWorkspaceToFolder);
+  const removeWorkspaceFromFolder = useWorkspaceFoldersStore(
+    (state) => state.removeWorkspaceFromFolder,
+  );
+  const createFolder = useWorkspaceFoldersStore((state) => state.createFolder);
+  const [createFolderVisible, setCreateFolderVisible] = useState(false);
+
+  const currentFolderId =
+    folders.find((folder) => folder.workspaceKeys.includes(workspaceKey))?.id ?? null;
+
+  const handleCreateFolderSubmit = useCallback(
+    (name: string) => {
+      const folder = createFolder(scopeKey, name);
+      addWorkspaceToFolder(scopeKey, folder.id, workspaceKey);
+      setCreateFolderVisible(false);
+    },
+    [createFolder, addWorkspaceToFolder, scopeKey, workspaceKey],
+  );
+
+  const handleOpenCreateFolder = useCallback(() => {
+    setCreateFolderVisible(true);
+  }, []);
+  const handleCloseCreateFolder = useCallback(() => {
+    setCreateFolderVisible(false);
+  }, []);
+  const handleRemoveFromFolder = useCallback(() => {
+    removeWorkspaceFromFolder(scopeKey, workspaceKey);
+  }, [removeWorkspaceFromFolder, scopeKey, workspaceKey]);
+
+  const showFolderActions = scopeKey.length > 0;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        hitSlop={8}
-        style={workspaceKebabStyle}
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.workspace.actions.menu")}
-        testID={`sidebar-workspace-kebab-${workspaceKey}`}
-      >
-        {renderKebabTriggerIcon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" width={260}>
-        {onCopyPath ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-path-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyPath}
-          >
-            {t("sidebar.workspace.actions.copyPath")}
-          </DropdownMenuItem>
-        ) : null}
-        {onCopyBranchName ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-branch-name-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyBranchName}
-          >
-            {t("sidebar.workspace.actions.copyBranchName")}
-          </DropdownMenuItem>
-        ) : null}
-        {onRename ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-rename-${workspaceKey}`}
-            leading={renameLeadingIcon}
-            onSelect={onRename}
-          >
-            {t("sidebar.workspace.actions.rename")}
-          </DropdownMenuItem>
-        ) : null}
-        {onMarkAsRead ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
-            leading={markAsReadLeadingIcon}
-            onSelect={onMarkAsRead}
-          >
-            Mark as read
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          testID={`sidebar-workspace-menu-archive-${workspaceKey}`}
-          leading={archiveLeadingIcon}
-          trailing={archiveTrailing}
-          status={archiveStatus}
-          pendingLabel={archivePendingLabel}
-          onSelect={onArchive}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          hitSlop={8}
+          style={workspaceKebabStyle}
+          accessibilityRole={platformIsWeb ? undefined : "button"}
+          accessibilityLabel={t("sidebar.workspace.actions.menu")}
+          testID={`sidebar-workspace-kebab-${workspaceKey}`}
         >
-          {archiveLabel ?? t("sidebar.workspace.actions.archive")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {renderKebabTriggerIcon}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width={260}>
+          {onCopyPath ? (
+            <DropdownMenuItem
+              testID={`sidebar-workspace-menu-copy-path-${workspaceKey}`}
+              leading={copyLeadingIcon}
+              onSelect={onCopyPath}
+            >
+              {t("sidebar.workspace.actions.copyPath")}
+            </DropdownMenuItem>
+          ) : null}
+          {onCopyBranchName ? (
+            <DropdownMenuItem
+              testID={`sidebar-workspace-menu-copy-branch-name-${workspaceKey}`}
+              leading={copyLeadingIcon}
+              onSelect={onCopyBranchName}
+            >
+              {t("sidebar.workspace.actions.copyBranchName")}
+            </DropdownMenuItem>
+          ) : null}
+          {onRename ? (
+            <DropdownMenuItem
+              testID={`sidebar-workspace-menu-rename-${workspaceKey}`}
+              leading={renameLeadingIcon}
+              onSelect={onRename}
+            >
+              {t("sidebar.workspace.actions.rename")}
+            </DropdownMenuItem>
+          ) : null}
+          {onMarkAsRead ? (
+            <DropdownMenuItem
+              testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
+              leading={markAsReadLeadingIcon}
+              onSelect={onMarkAsRead}
+            >
+              Mark as read
+            </DropdownMenuItem>
+          ) : null}
+          {showFolderActions ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Folders</DropdownMenuLabel>
+              {folders.map((folder) =>
+                folder.id === currentFolderId ? null : (
+                  <WorkspaceFolderMoveItem
+                    key={folder.id}
+                    folder={folder}
+                    scopeKey={scopeKey}
+                    workspaceKey={workspaceKey}
+                    onMove={addWorkspaceToFolder}
+                  />
+                ),
+              )}
+              <DropdownMenuItem
+                testID={`sidebar-workspace-menu-new-folder-${workspaceKey}`}
+                leading={folderPlusLeadingIcon}
+                onSelect={handleOpenCreateFolder}
+              >
+                New folder…
+              </DropdownMenuItem>
+              {currentFolderId ? (
+                <DropdownMenuItem
+                  testID={`sidebar-workspace-menu-remove-folder-${workspaceKey}`}
+                  leading={folderMinusLeadingIcon}
+                  onSelect={handleRemoveFromFolder}
+                >
+                  Remove from folder
+                </DropdownMenuItem>
+              ) : null}
+            </>
+          ) : null}
+          <DropdownMenuItem
+            testID={`sidebar-workspace-menu-archive-${workspaceKey}`}
+            leading={archiveLeadingIcon}
+            trailing={archiveTrailing}
+            status={archiveStatus}
+            pendingLabel={archivePendingLabel}
+            onSelect={onArchive}
+          >
+            {archiveLabel ?? t("sidebar.workspace.actions.archive")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AdaptiveRenameModal
+        visible={createFolderVisible}
+        title="New folder"
+        initialValue=""
+        placeholder="Folder name"
+        submitLabel="Create"
+        onClose={handleCloseCreateFolder}
+        onSubmit={handleCreateFolderSubmit}
+      />
+    </>
   );
 }
 
@@ -1838,6 +1969,37 @@ function ProjectBlock({
     enabled: selectionEnabled,
   });
 
+  const folderScopeKey = serverId ? buildWorkspaceFolderScopeKey(serverId, project.projectKey) : "";
+  const selectScopeFolders = useCallback(
+    (state: { foldersMap: Record<string, WorkspaceFolder[]> }) =>
+      folderScopeKey
+        ? (state.foldersMap[folderScopeKey] ?? EMPTY_WORKSPACE_FOLDERS)
+        : EMPTY_WORKSPACE_FOLDERS,
+    [folderScopeKey],
+  );
+  const scopeFolders = useWorkspaceFoldersStore(selectScopeFolders);
+  const { workspaceByKey, ungroupedWorkspaces } = useMemo(() => {
+    const byKey = new Map<string, SidebarWorkspaceEntry>();
+    for (const workspace of project.workspaces) {
+      byKey.set(workspace.workspaceKey, workspace);
+    }
+    if (scopeFolders.length === 0) {
+      return { workspaceByKey: byKey, ungroupedWorkspaces: project.workspaces };
+    }
+    const folderedKeys = new Set<string>();
+    for (const folder of scopeFolders) {
+      for (const workspaceKey of folder.workspaceKeys) {
+        folderedKeys.add(workspaceKey);
+      }
+    }
+    return {
+      workspaceByKey: byKey,
+      ungroupedWorkspaces: project.workspaces.filter(
+        (workspace) => !folderedKeys.has(workspace.workspaceKey),
+      ),
+    };
+  }, [project.workspaces, scopeFolders]);
+
   const renderWorkspaceRow = useCallback(
     (
       item: SidebarWorkspaceEntry,
@@ -1969,19 +2131,28 @@ function ProjectBlock({
       />
 
       {!collapsed && project.workspaces.length > 0 ? (
-        <DraggableList
-          testID={`sidebar-workspace-list-${project.projectKey}`}
-          data={project.workspaces}
-          keyExtractor={workspaceKeyExtractor}
-          renderItem={renderWorkspace}
-          onDragEnd={handleWorkspaceDragEnd}
-          extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
-          scrollEnabled={false}
-          useDragHandle
-          nestable={useNestable}
-          simultaneousGestureRef={parentGestureRef}
-          containerStyle={styles.workspaceListContainer}
-        />
+        <>
+          {folderScopeKey ? (
+            <WorkspaceFolderSection
+              scopeKey={folderScopeKey}
+              workspaceByKey={workspaceByKey}
+              renderWorkspaceRow={renderWorkspaceRow}
+            />
+          ) : null}
+          <DraggableList
+            testID={`sidebar-workspace-list-${project.projectKey}`}
+            data={ungroupedWorkspaces}
+            keyExtractor={workspaceKeyExtractor}
+            renderItem={renderWorkspace}
+            onDragEnd={handleWorkspaceDragEnd}
+            extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
+            scrollEnabled={false}
+            useDragHandle
+            nestable={useNestable}
+            simultaneousGestureRef={parentGestureRef}
+            containerStyle={styles.workspaceListContainer}
+          />
+        </>
       ) : null}
     </View>
   );
