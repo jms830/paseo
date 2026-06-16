@@ -79,6 +79,7 @@ import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-
 import { Button } from "@/components/ui/button";
 import { CommunityLinks } from "@/components/community-links";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Combobox, ComboboxItem, type ComboboxOption } from "@/components/ui/combobox";
 import { DesktopPermissionsSection } from "@/desktop/components/desktop-permissions-section";
@@ -251,6 +252,7 @@ interface GeneralSectionProps {
   handleServiceUrlBehaviorChange: (behavior: ServiceUrlBehavior) => void;
   handleLanguageChange: (language: AppLanguage) => void;
   handleTerminalScrollbackLinesChange: (lines: number) => void;
+  handleCommitGitmojiChange: (enabled: boolean) => void;
 }
 
 interface ServiceUrlBehaviorMenuItemProps {
@@ -307,6 +309,7 @@ function GeneralSection({
   handleServiceUrlBehaviorChange,
   handleLanguageChange,
   handleTerminalScrollbackLinesChange,
+  handleCommitGitmojiChange,
 }: GeneralSectionProps) {
   const { t, i18n } = useTranslation();
   const activeLocale = getActiveLocale(i18n.language);
@@ -364,6 +367,15 @@ function GeneralSection({
             onValueChange={handleSendBehaviorChange}
             options={sendBehaviorOptions}
           />
+        </View>
+        <View style={ROW_WITH_BORDER_STYLE}>
+          <View style={settingsStyles.rowContent}>
+            <Text style={settingsStyles.rowTitle}>Gitmoji commits</Text>
+            <Text style={settingsStyles.rowHint}>
+              Prefix generated commit messages with a gitmoji for their type
+            </Text>
+          </View>
+          <Switch value={settings.commitGitmoji} onValueChange={handleCommitGitmojiChange} />
         </View>
         <View style={ROW_WITH_BORDER_STYLE}>
           <View style={settingsStyles.rowContent}>
@@ -1287,6 +1299,13 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
     [updateSettings],
   );
 
+  const handleCommitGitmojiChange = useCallback(
+    (enabled: boolean) => {
+      void updateSettings({ commitGitmoji: enabled });
+    },
+    [updateSettings],
+  );
+
   const handleServiceUrlBehaviorChange = useCallback(
     (behavior: ServiceUrlBehavior) => {
       void updateSettings({ serviceUrlBehavior: behavior });
@@ -1509,6 +1528,7 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
               handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
               handleLanguageChange={handleLanguageChange}
               handleTerminalScrollbackLinesChange={handleTerminalScrollbackLinesChange}
+              handleCommitGitmojiChange={handleCommitGitmojiChange}
             />
           );
         case "daemon":

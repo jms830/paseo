@@ -230,6 +230,11 @@ import {
 import { notifyChatMentions, prepareChatMentionFanout } from "./chat/chat-mentions.js";
 import { LoopService } from "./loop-service.js";
 import { ScheduleService } from "./schedule/service.js";
+import { QuotaService } from "./quota/service.js";
+import { SkillsCatalogService } from "./skills-catalog/service.js";
+import { GitIdentityService } from "./git-identity/service.js";
+import { TunnelService } from "./tunnel/service.js";
+import { applyGitmoji } from "./git/gitmoji.js";
 import { execCommand } from "../utils/spawn.js";
 import {
   assertPullRequestAutoMergeDisableReady,
@@ -600,6 +605,10 @@ export interface SessionOptions {
   chatService: FileBackedChatService;
   scheduleService: ScheduleService;
   loopService: LoopService;
+  quotaService: QuotaService;
+  skillsCatalogService: SkillsCatalogService;
+  gitIdentityService: GitIdentityService;
+  tunnelService: TunnelService;
   checkoutDiffManager: CheckoutDiffManager;
   github?: GitHubService;
   createAgentMcpTransport?: AgentMcpTransportFactory;
@@ -828,6 +837,10 @@ export class Session {
   private readonly chatService: FileBackedChatService;
   private readonly scheduleService: ScheduleService;
   private readonly loopService: LoopService;
+  private readonly quotaService: QuotaService;
+  private readonly skillsCatalogService: SkillsCatalogService;
+  private readonly gitIdentityService: GitIdentityService;
+  private readonly tunnelService: TunnelService;
   private readonly checkoutDiffManager: CheckoutDiffManager;
   private readonly github: GitHubService;
   private readonly renameCurrentBranch: typeof renameCurrentBranchDefault;
@@ -908,6 +921,10 @@ export class Session {
       chatService,
       scheduleService,
       loopService,
+      quotaService,
+      skillsCatalogService,
+      gitIdentityService,
+      tunnelService,
       checkoutDiffManager,
       github,
       renameCurrentBranch,
@@ -961,6 +978,10 @@ export class Session {
     this.chatService = chatService;
     this.scheduleService = scheduleService;
     this.loopService = loopService;
+    this.quotaService = quotaService;
+    this.skillsCatalogService = skillsCatalogService;
+    this.gitIdentityService = gitIdentityService;
+    this.tunnelService = tunnelService;
     this.checkoutDiffManager = checkoutDiffManager;
     this.github = github ?? createGitHubService();
     this.renameCurrentBranch = renameCurrentBranch ?? renameCurrentBranchDefault;
@@ -1804,6 +1825,10 @@ export class Session {
       this.dispatchProviderMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
       this.dispatchChatScheduleLoopMessage(msg) ??
+      this.dispatchQuotaMessage(msg) ??
+      this.dispatchSkillsMessage(msg) ??
+      this.dispatchGitIdentityMessage(msg) ??
+      this.dispatchTunnelMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
   }
@@ -2250,6 +2275,54 @@ export class Session {
         return this.handleLoopStopRequest(msg);
       default:
         return this.dispatchScheduleMessage(msg);
+    }
+  }
+
+  private dispatchQuotaMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "quota/list":
+        return this.handleQuotaListRequest(msg);
+      case "quota/fetch":
+        return this.handleQuotaFetchRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private dispatchSkillsMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "skills/list":
+        return this.handleSkillsListRequest(msg);
+      case "skills/scan":
+        return this.handleSkillsScanRequest(msg);
+      case "skills/install":
+        return this.handleSkillsInstallRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private dispatchGitIdentityMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "git-identity/get":
+        return this.handleGitIdentityGetRequest(msg);
+      case "git-identity/set":
+        return this.handleGitIdentitySetRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private dispatchTunnelMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "tunnel/status":
+        return this.handleTunnelStatusRequest(msg);
+      case "tunnel/start":
+        return this.handleTunnelStartRequest(msg);
+      case "tunnel/stop":
+        return this.handleTunnelStopRequest(msg);
+      default:
+        return undefined;
     }
   }
 
@@ -5425,6 +5498,9 @@ export class Session {
       }
       if (!message) {
         throw new Error("Commit message is required");
+      }
+      if (msg.gitmoji) {
+        message = applyGitmoji(message);
       }
 
       await commitChanges(cwd, {
@@ -9803,6 +9879,199 @@ export class Session {
     } catch (error) {
       this.emitScheduleRpcError(request, error);
     }
+  }
+
+  private async handleQuotaListRequest(
+    request: Extract<SessionInboundMessage, { type: "quota/list" }>,
+  ): Promise<void> {
+    try {
+      const providerIds = this.quotaService.listConfigured();
+      this.emit({
+        type: "quota/list/response",
+        payload: { requestId: request.requestId, providerIds, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "quota/list/response",
+        payload: {
+          requestId: request.requestId,
+          providerIds: [],
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleQuotaFetchRequest(
+    request: Extract<SessionInboundMessage, { type: "quota/fetch" }>,
+  ): Promise<void> {
+    try {
+      const result = await this.quotaService.fetch(request.providerId);
+      this.emit({
+        type: "quota/fetch/response",
+        payload: { requestId: request.requestId, result, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "quota/fetch/response",
+        payload: {
+          requestId: request.requestId,
+          result: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleSkillsListRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/list" }>,
+  ): Promise<void> {
+    try {
+      const skills = await this.skillsCatalogService.listInstalled();
+      this.emit({
+        type: "skills/list/response",
+        payload: { requestId: request.requestId, skills, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "skills/list/response",
+        payload: {
+          requestId: request.requestId,
+          skills: [],
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleSkillsScanRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/scan" }>,
+  ): Promise<void> {
+    const result = await this.skillsCatalogService.scan(request.source, request.subpath);
+    this.emit({
+      type: "skills/scan/response",
+      payload: {
+        requestId: request.requestId,
+        skills: result.ok ? result.skills : [],
+        error: result.ok ? null : result.error,
+      },
+    });
+  }
+
+  private async handleSkillsInstallRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/install" }>,
+  ): Promise<void> {
+    const result = await this.skillsCatalogService.install({
+      source: request.source,
+      subpath: request.subpath,
+      skillDirs: request.skillDirs,
+      overwrite: request.overwrite,
+    });
+    this.emit({
+      type: "skills/install/response",
+      payload: {
+        requestId: request.requestId,
+        installed: result.ok ? result.installed : [],
+        skipped: result.ok ? result.skipped : [],
+        error: result.ok ? null : result.error,
+      },
+    });
+  }
+
+  private async handleGitIdentityGetRequest(
+    request: Extract<SessionInboundMessage, { type: "git-identity/get" }>,
+  ): Promise<void> {
+    try {
+      const identity = await this.gitIdentityService.get(request.cwd);
+      this.emit({
+        type: "git-identity/get/response",
+        payload: { requestId: request.requestId, identity, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "git-identity/get/response",
+        payload: {
+          requestId: request.requestId,
+          identity: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleGitIdentitySetRequest(
+    request: Extract<SessionInboundMessage, { type: "git-identity/set" }>,
+  ): Promise<void> {
+    try {
+      await this.gitIdentityService.set(request.cwd, request.name, request.email);
+      const identity = await this.gitIdentityService.get(request.cwd);
+      this.emit({
+        type: "git-identity/set/response",
+        payload: { requestId: request.requestId, identity, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "git-identity/set/response",
+        payload: {
+          requestId: request.requestId,
+          identity: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private handleTunnelStatusRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/status" }>,
+  ): Promise<void> {
+    this.emit({
+      type: "tunnel/status/response",
+      payload: { requestId: request.requestId, status: this.tunnelService.status(), error: null },
+    });
+    return Promise.resolve();
+  }
+
+  private async handleTunnelStartRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/start" }>,
+  ): Promise<void> {
+    try {
+      const port = this.getDaemonTcpPort?.() ?? null;
+      if (port === null) {
+        this.emit({
+          type: "tunnel/start/response",
+          payload: {
+            requestId: request.requestId,
+            status: this.tunnelService.status(),
+            error: "This host has no local TCP port to expose.",
+          },
+        });
+        return;
+      }
+      const status = await this.tunnelService.start(port);
+      this.emit({
+        type: "tunnel/start/response",
+        payload: { requestId: request.requestId, status, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "tunnel/start/response",
+        payload: {
+          requestId: request.requestId,
+          status: this.tunnelService.status(),
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private handleTunnelStopRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/stop" }>,
+  ): Promise<void> {
+    this.emit({
+      type: "tunnel/stop/response",
+      payload: { requestId: request.requestId, status: this.tunnelService.stop(), error: null },
+    });
+    return Promise.resolve();
   }
 
   private emitLoopRpcError(

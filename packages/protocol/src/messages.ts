@@ -54,6 +54,34 @@ import {
   LoopStopResponseSchema,
 } from "@getpaseo/protocol/loop/rpc-schemas";
 import {
+  QuotaListRequestSchema,
+  QuotaFetchRequestSchema,
+  QuotaListResponseSchema,
+  QuotaFetchResponseSchema,
+} from "@getpaseo/protocol/quota/rpc-schemas";
+import {
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
+} from "@getpaseo/protocol/skills-catalog/rpc-schemas";
+import {
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
+} from "@getpaseo/protocol/git-identity/rpc-schemas";
+import {
+  TunnelStatusRequestSchema,
+  TunnelStartRequestSchema,
+  TunnelStopRequestSchema,
+  TunnelStatusResponseSchema,
+  TunnelStartResponseSchema,
+  TunnelStopResponseSchema,
+} from "@getpaseo/protocol/tunnel/rpc-schemas";
+import {
   PaseoConfigRawSchema,
   PaseoLifecycleCommandRawSchema,
   PaseoMetadataGenerationEntrySchema,
@@ -1419,6 +1447,7 @@ export const CheckoutCommitRequestSchema = z.object({
   cwd: z.string(),
   message: z.string().optional(),
   addAll: z.boolean().optional(),
+  gitmoji: z.boolean().optional(),
   requestId: z.string(),
 });
 
@@ -2076,6 +2105,16 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteRequestSchema,
   ScheduleRunOnceRequestSchema,
   ScheduleUpdateRequestSchema,
+  QuotaListRequestSchema,
+  QuotaFetchRequestSchema,
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
+  TunnelStatusRequestSchema,
+  TunnelStartRequestSchema,
+  TunnelStopRequestSchema,
   LoopRunRequestSchema,
   LoopListRequestSchema,
   LoopInspectRequestSchema,
@@ -2259,6 +2298,14 @@ export const ServerInfoStatusPayloadSchema = z
         checkoutRefresh: z.boolean().optional(),
         // COMPAT(workspaceMultiplicity): added in v0.1.97, drop the gate when floor >= v0.1.97
         workspaceMultiplicity: z.boolean().optional(),
+        // COMPAT(quota): OpenChamber provider-usage RPCs (quota/list,fetch); fork feature, drop gate once host floor ships them.
+        quota: z.boolean().optional(),
+        // COMPAT(skillsCatalog): OpenChamber skills RPCs (skills/list,scan,install); fork feature.
+        skillsCatalog: z.boolean().optional(),
+        // COMPAT(gitIdentity): OpenChamber per-repo git-identity RPCs (git-identity/get,set); fork feature.
+        gitIdentity: z.boolean().optional(),
+        // COMPAT(tunnel): OpenChamber Cloudflare-tunnel RPCs (tunnel/status,start,stop); fork feature.
+        tunnel: z.boolean().optional(),
       })
       .optional(),
   })
@@ -4070,6 +4117,16 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteResponseSchema,
   ScheduleRunOnceResponseSchema,
   ScheduleUpdateResponseSchema,
+  QuotaListResponseSchema,
+  QuotaFetchResponseSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
+  TunnelStatusResponseSchema,
+  TunnelStartResponseSchema,
+  TunnelStopResponseSchema,
   LoopRunResponseSchema,
   LoopListResponseSchema,
   LoopInspectResponseSchema,
