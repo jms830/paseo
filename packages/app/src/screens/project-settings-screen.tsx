@@ -28,6 +28,8 @@ import { AdaptiveModalSheet, type SheetHeader } from "@/components/adaptive-moda
 import { SettingsTextAreaCard } from "@/components/settings-textarea";
 import { SettingsGroup } from "@/screens/settings/settings-group";
 import { SettingsSection } from "@/screens/settings/settings-section";
+import { GitIdentitySection } from "@/screens/settings/git-identity-section";
+import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import { useProjects } from "@/hooks/use-projects";
 import { useProjectIconDataByProjectKey } from "@/projects/project-icons";
@@ -229,6 +231,9 @@ function ProjectSettingsBody({
   }, [readQuery]);
 
   const hasMultipleHosts = hosts.length > 1;
+  const gitIdentityEnabled = useSessionStore(
+    (s) => s.sessions[selectedHost.serverId]?.serverInfo?.features?.gitIdentity === true,
+  );
 
   return (
     <View style={styles.body}>
@@ -245,6 +250,10 @@ function ProjectSettingsBody({
         </View>
         <HostContext hosts={hosts} selectedHost={selectedHost} onSelectHost={onSelectHost} />
       </View>
+
+      {gitIdentityEnabled ? (
+        <GitIdentitySection client={client} cwd={selectedHost.repoRoot} />
+      ) : null}
 
       {renderContent({
         readQuery,

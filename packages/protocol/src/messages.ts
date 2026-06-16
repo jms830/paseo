@@ -54,6 +54,28 @@ import {
   LoopStopResponseSchema,
 } from "@getpaseo/protocol/loop/rpc-schemas";
 import {
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
+} from "@getpaseo/protocol/skills-catalog/rpc-schemas";
+import {
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
+} from "@getpaseo/protocol/git-identity/rpc-schemas";
+import {
+  TunnelStatusRequestSchema,
+  TunnelStartRequestSchema,
+  TunnelStopRequestSchema,
+  TunnelStatusResponseSchema,
+  TunnelStartResponseSchema,
+  TunnelStopResponseSchema,
+} from "@getpaseo/protocol/tunnel/rpc-schemas";
+import {
   PaseoConfigRawSchema,
   PaseoLifecycleCommandRawSchema,
   PaseoMetadataGenerationEntrySchema,
@@ -1459,6 +1481,7 @@ export const CheckoutCommitRequestSchema = z.object({
   cwd: z.string(),
   message: z.string().optional(),
   addAll: z.boolean().optional(),
+  gitmoji: z.boolean().optional(),
   requestId: z.string(),
 });
 
@@ -2126,6 +2149,14 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteRequestSchema,
   ScheduleRunOnceRequestSchema,
   ScheduleUpdateRequestSchema,
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
+  TunnelStatusRequestSchema,
+  TunnelStartRequestSchema,
+  TunnelStopRequestSchema,
   LoopRunRequestSchema,
   LoopListRequestSchema,
   LoopInspectRequestSchema,
@@ -2319,6 +2350,12 @@ export const ServerInfoStatusPayloadSchema = z
         providerUsageList: z.boolean().optional(),
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: z.boolean().optional(),
+        // COMPAT(skillsCatalog): OpenChamber skills RPCs (skills/list,scan,install); fork feature.
+        skillsCatalog: z.boolean().optional(),
+        // COMPAT(gitIdentity): OpenChamber per-repo git-identity RPCs (git-identity/get,set); fork feature.
+        gitIdentity: z.boolean().optional(),
+        // COMPAT(tunnel): OpenChamber Cloudflare-tunnel RPCs (tunnel/status,start,stop); fork feature.
+        tunnel: z.boolean().optional(),
       })
       .optional(),
   })
@@ -4204,6 +4241,14 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteResponseSchema,
   ScheduleRunOnceResponseSchema,
   ScheduleUpdateResponseSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
+  TunnelStatusResponseSchema,
+  TunnelStartResponseSchema,
+  TunnelStopResponseSchema,
   LoopRunResponseSchema,
   LoopListResponseSchema,
   LoopInspectResponseSchema,
