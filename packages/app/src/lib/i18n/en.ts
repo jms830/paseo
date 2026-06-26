@@ -31,6 +31,16 @@ export const en = {
   "multiRun.promptPlaceholder": "What should every model do?",
   "multiRun.modelsSelected": "Models ({count} selected)",
   "multiRun.cancel": "Cancel",
+
+  // Snippets settings + composer (# autocomplete)
+  "snippets.title": "Snippets",
+  "snippets.hint": "Reusable text inserted in the composer by typing # then the snippet name.",
+  "snippets.empty": "No snippets yet.",
+  "snippets.namePlaceholder": "Name (e.g. review)",
+  "snippets.bodyPlaceholder": "Snippet text…",
+  "snippets.add": "Add snippet",
+  "snippets.save": "Save",
+  "snippets.cancel": "Cancel",
 } as const;
 
 export type MessageKey = keyof typeof en;
