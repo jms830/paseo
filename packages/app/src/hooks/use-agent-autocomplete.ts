@@ -25,6 +25,17 @@ import {
   findActiveFileMention,
   type FileMentionRange,
 } from "@/utils/file-mention-autocomplete";
+import {
+  applySnippetReplacement,
+  findActiveSnippetMention,
+  type SnippetMentionRange,
+} from "@/utils/snippet-mention-autocomplete";
+import {
+  EMPTY_SNIPPETS,
+  GLOBAL_SNIPPET_SCOPE,
+  useSnippetsStore,
+  type Snippet,
+} from "@/stores/snippets-store";
 
 interface UseAgentAutocompleteInput {
   userInput: string;
@@ -45,6 +56,11 @@ type AgentAutocompleteOption =
       type: "workspace_entry";
       entryPath: string;
       mention: FileMentionRange;
+    })
+  | (AutocompleteOption & {
+      type: "snippet";
+      body: string;
+      mention: SnippetMentionRange;
     });
 
 interface AgentAutocompleteResult {
@@ -140,7 +156,26 @@ function mapCommandToOption(entry: AvailableCommand, t: TFunction): AgentAutocom
   };
 }
 
-type AutocompleteMode = "command" | "file" | null;
+function buildSnippetAutocompleteOptions(
+  snippets: Snippet[],
+  query: string,
+  mention: SnippetMentionRange,
+): AgentAutocompleteOption[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches = normalizedQuery
+    ? snippets.filter((snippet) => snippet.name.toLowerCase().includes(normalizedQuery))
+    : snippets;
+  return matches.map((snippet) => ({
+    type: "snippet" as const,
+    id: snippet.id,
+    label: snippet.name,
+    description: snippet.body,
+    body: snippet.body,
+    mention,
+  }));
+}
+
+type AutocompleteMode = "command" | "file" | "snippet" | null;
 
 interface BuildAutocompleteOptionsInput {
   isVisible: boolean;
@@ -201,9 +236,13 @@ function buildCommandAutocompleteOptions(input: BuildAutocompleteOptionsInput) {
 }
 
 function resolveAutocompleteMode(args: {
+  showSnippetAutocomplete: boolean;
   showFileAutocomplete: boolean;
   showCommandAutocomplete: boolean;
 }): AutocompleteMode {
+  if (args.showSnippetAutocomplete) {
+    return "snippet";
+  }
   if (args.showFileAutocomplete) {
     return "file";
   }
@@ -219,6 +258,9 @@ function resolveAutocompleteIsVisible(args: {
   serverId: string;
   autocompleteCwd: string;
 }): boolean {
+  if (args.mode === "snippet") {
+    return true;
+  }
   if (args.mode === "command") {
     return args.canLoadCommands;
   }
@@ -277,6 +319,31 @@ function resolveAutocompleteErrorMessage(args: {
   return undefined;
 }
 
+function resolveAutocompleteFilterQuery(args: {
+  mode: AutocompleteMode;
+  commandFilterQuery: string;
+  snippetFilterQuery: string;
+  fileFilterQuery: string;
+}): string {
+  if (args.mode === "command") {
+    return args.commandFilterQuery;
+  }
+  if (args.mode === "snippet") {
+    return args.snippetFilterQuery;
+  }
+  return args.fileFilterQuery;
+}
+
+function resolveAutocompleteEmptyText(args: { mode: AutocompleteMode; t: TFunction }): string {
+  if (args.mode === "snippet") {
+    return "No snippets";
+  }
+  if (args.mode === "file") {
+    return args.t("agentAutocomplete.noFiles");
+  }
+  return args.t("agentAutocomplete.noCommands");
+}
+
 export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAutocompleteResult {
   const { t } = useTranslation();
   const {
@@ -312,6 +379,16 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   );
   const showFileAutocomplete = activeFileMention !== null;
   const fileFilterQuery = activeFileMention?.query ?? "";
+
+  const activeSnippetMention = useMemo(
+    () => findActiveSnippetMention({ text: userInput, cursorIndex }),
+    [cursorIndex, userInput],
+  );
+  const snippets = useSnippetsStore(
+    (state) => state.byScope[GLOBAL_SNIPPET_SCOPE] ?? EMPTY_SNIPPETS,
+  );
+  const showSnippetAutocomplete = activeSnippetMention !== null && snippets.length > 0;
+  const snippetFilterQuery = activeSnippetMention?.query ?? "";
   const [debouncedFileFilterQuery, setDebouncedFileFilterQuery] = useState(fileFilterQuery);
 
   useEffect(() => {
@@ -341,7 +418,11 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   const client = useHostRuntimeClient(serverId);
   const isConnected = useHostRuntimeIsConnected(serverId);
 
-  const mode = resolveAutocompleteMode({ showFileAutocomplete, showCommandAutocomplete });
+  const mode = resolveAutocompleteMode({
+    showSnippetAutocomplete,
+    showFileAutocomplete,
+    showCommandAutocomplete,
+  });
   const canShowAutocomplete = resolveAutocompleteIsVisible({
     mode,
     canLoadCommands,
@@ -399,31 +480,35 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
     placeholderData: keepPreviousData,
   });
 
-  const options = useMemo<AgentAutocompleteOption[]>(
-    () =>
-      buildCommandAutocompleteOptions({
-        activeFileMention,
-        commandFilterQuery,
-        commands,
-        activeSlashCommand,
-        fileSuggestions: fileSuggestionsQuery.data ?? [],
-        isDraftContext,
-        isVisible,
-        mode,
-        t,
-      }),
-    [
+  const options = useMemo<AgentAutocompleteOption[]>(() => {
+    if (mode === "snippet" && activeSnippetMention) {
+      return buildSnippetAutocompleteOptions(snippets, snippetFilterQuery, activeSnippetMention);
+    }
+    return buildCommandAutocompleteOptions({
       activeFileMention,
-      activeSlashCommand,
       commandFilterQuery,
       commands,
-      fileSuggestionsQuery.data,
+      activeSlashCommand,
+      fileSuggestions: fileSuggestionsQuery.data ?? [],
       isDraftContext,
       isVisible,
       mode,
       t,
-    ],
-  );
+    });
+  }, [
+    activeFileMention,
+    activeSlashCommand,
+    activeSnippetMention,
+    commandFilterQuery,
+    commands,
+    fileSuggestionsQuery.data,
+    isDraftContext,
+    isVisible,
+    mode,
+    snippetFilterQuery,
+    snippets,
+    t,
+  ]);
 
   const onSelectOption = useCallback(
     (option: AutocompleteOption) => {
@@ -455,6 +540,17 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
         return;
       }
 
+      if (selected.type === "snippet") {
+        const snippetInput = applySnippetReplacement({
+          text: userInput,
+          mention: selected.mention,
+          body: selected.body,
+        });
+        setUserInput(snippetInput);
+        onAutocompleteApplied?.();
+        return;
+      }
+
       const nextInput = applyFileMentionReplacement({
         text: userInput,
         mention: selected.mention,
@@ -476,7 +572,12 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   const { selectedIndex, onKeyPress } = useAutocomplete({
     isVisible,
     options,
-    query: mode === "command" ? commandFilterQuery : fileFilterQuery,
+    query: resolveAutocompleteFilterQuery({
+      mode,
+      commandFilterQuery,
+      snippetFilterQuery,
+      fileFilterQuery,
+    }),
     onSelectOption,
     onEscape:
       mode === "command" && activeSlashCommand?.position === "start"
@@ -503,8 +604,7 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
     mode === "file"
       ? t("agentAutocomplete.searchingWorkspace")
       : t("agentAutocomplete.loadingCommands");
-  const emptyText =
-    mode === "file" ? t("agentAutocomplete.noFiles") : t("agentAutocomplete.noCommands");
+  const emptyText = resolveAutocompleteEmptyText({ mode, t });
 
   return {
     isVisible,

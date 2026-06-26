@@ -50,6 +50,7 @@ import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
 import { ScreenTitle } from "@/components/headers/screen-title";
 import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
 import { SettingsSection } from "@/screens/settings/settings-section";
+import { SnippetsSection } from "@/screens/settings/snippets-section";
 import { AppearanceSection } from "@/screens/settings/appearance/appearance-section";
 import {
   useAppSettings,
@@ -1526,15 +1527,18 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
       switch (view.section) {
         case "general":
           return (
-            <GeneralSection
-              settings={settings}
-              isDesktopApp={isDesktopApp}
-              handleSendBehaviorChange={handleSendBehaviorChange}
-              handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
-              handleLanguageChange={handleLanguageChange}
-              handleTerminalScrollbackLinesChange={handleTerminalScrollbackLinesChange}
-              handleCommitGitmojiChange={handleCommitGitmojiChange}
-            />
+            <>
+              <GeneralSection
+                settings={settings}
+                isDesktopApp={isDesktopApp}
+                handleSendBehaviorChange={handleSendBehaviorChange}
+                handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
+                handleLanguageChange={handleLanguageChange}
+                handleTerminalScrollbackLinesChange={handleTerminalScrollbackLinesChange}
+                handleCommitGitmojiChange={handleCommitGitmojiChange}
+              />
+              <SnippetsSection />
+            </>
           );
         case "daemon":
           return <LocalDaemonSection />;
