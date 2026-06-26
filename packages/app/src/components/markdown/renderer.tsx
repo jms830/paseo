@@ -24,6 +24,7 @@ import Markdown, {
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
 import { HighlightedCodeBlock } from "@/components/highlighted-code-block";
+import { MermaidBlock } from "@/components/mermaid-block";
 import { MarkdownParagraphView, MarkdownTextSpan } from "@/components/markdown-text";
 import { getMarkdownListMarker, getMarkdownListSpacing } from "@/utils/markdown-list";
 import { markdownNodeContainsType } from "@/utils/markdown-ast";
@@ -591,15 +592,21 @@ export function createSharedMarkdownRules(): RenderRules {
       _parent: ASTNode[],
       styles: MarkdownStyles,
       inheritedStyles: TextStyle = {},
-    ) => (
-      <HighlightedCodeBlock
-        key={node.key}
-        code={node.content}
-        language={node.sourceInfo}
-        inheritedStyles={inheritedStyles}
-        textStyle={styles.fence}
-      />
-    ),
+    ) => {
+      const fenceLanguage = (node.sourceInfo ?? "").trim().split(/\s+/)[0]?.toLowerCase();
+      if (fenceLanguage === "mermaid") {
+        return <MermaidBlock key={node.key} code={node.content} />;
+      }
+      return (
+        <HighlightedCodeBlock
+          key={node.key}
+          code={node.content}
+          language={node.sourceInfo}
+          inheritedStyles={inheritedStyles}
+          textStyle={styles.fence}
+        />
+      );
+    },
     code_inline: (
       node: ASTNode,
       _children: ReactNode[],
