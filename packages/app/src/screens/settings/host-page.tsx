@@ -47,6 +47,7 @@ import {
   useHosts,
 } from "@/runtime/host-runtime";
 import { ProvidersSection } from "@/screens/settings/providers-section";
+import { SkillsSection } from "@/screens/settings/skills-section";
 import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { SettingsSection } from "@/screens/settings/settings-section";
@@ -252,6 +253,9 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
   const host = useHostProfile(serverId);
   const isConnected = useHostRuntimeIsConnected(serverId);
+  const skillsEnabled = useSessionStore(
+    (s) => s.sessions[serverId]?.serverInfo?.features?.skillsCatalog === true,
+  );
 
   if (!host) {
     return <HostNotFound />;
@@ -269,6 +273,7 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
           <Text style={styles.emptyText}>{t("settings.host.agents.unavailable")}</Text>
         </View>
       )}
+      {skillsEnabled ? <SkillsSection serverId={serverId} /> : null}
     </View>
   );
 }

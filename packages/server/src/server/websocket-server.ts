@@ -10,6 +10,7 @@ import type { DownloadTokenStore } from "./file-download/token-store.js";
 import type { TerminalManager } from "../terminal/terminal-manager.js";
 import type pino from "pino";
 import type { ProjectRegistry, WorkspaceRegistry } from "./workspace-registry.js";
+import { SkillsCatalogService } from "./skills-catalog/service.js";
 import type { FileBackedChatService } from "./chat/chat-service.js";
 import type { LoopService } from "./loop-service.js";
 import type { ScheduleService } from "./schedule/service.js";
@@ -401,6 +402,7 @@ export class VoiceAssistantWebSocketServer {
   private readonly loopService: LoopService;
   private readonly scheduleService: ScheduleService;
   private readonly checkoutDiffManager: CheckoutDiffManager;
+  private readonly skillsCatalogService = new SkillsCatalogService();
   private readonly github: GitHubService;
   private readonly workspaceGitService: WorkspaceGitService;
   private readonly downloadTokenStore: DownloadTokenStore;
@@ -989,6 +991,7 @@ export class VoiceAssistantWebSocketServer {
       loopService: this.loopService,
       scheduleService: this.scheduleService,
       checkoutDiffManager: this.checkoutDiffManager,
+      skillsCatalogService: this.skillsCatalogService,
       github: this.github,
       workspaceGitService: this.workspaceGitService,
       daemonConfigStore: this.daemonConfigStore,
@@ -1202,6 +1205,8 @@ export class VoiceAssistantWebSocketServer {
         daemonSelfUpdate: true,
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: true,
+        // COMPAT(skillsCatalog): OpenChamber skills RPCs; drop gate once host floor ships them.
+        skillsCatalog: true,
       },
     };
   }

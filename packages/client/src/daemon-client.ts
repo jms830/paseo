@@ -418,6 +418,18 @@ type LoopInspectPayload = Extract<
   SessionOutboundMessage,
   { type: "loop/inspect/response" }
 >["payload"];
+type SkillsListPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/list/response" }
+>["payload"];
+type SkillsScanPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/scan/response" }
+>["payload"];
+type SkillsInstallPayload = Extract<
+  SessionOutboundMessage,
+  { type: "skills/install/response" }
+>["payload"];
 type LoopLogsPayload = Extract<SessionOutboundMessage, { type: "loop/logs/response" }>["payload"];
 type LoopStopPayload = Extract<SessionOutboundMessage, { type: "loop/stop/response" }>["payload"];
 type ScheduleCreatePayload = Extract<
@@ -4583,6 +4595,55 @@ export class DaemonClient {
         id: normalized.id,
       },
       responseType: "loop/stop/response",
+    });
+  }
+
+  async skillsList(requestId?: string): Promise<SkillsListPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "skills/list",
+      },
+      responseType: "skills/list/response",
+      timeout: 10000,
+    });
+  }
+
+  async skillsScan(input: {
+    source: string;
+    subpath?: string;
+    requestId?: string;
+  }): Promise<SkillsScanPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "skills/scan",
+        source: input.source,
+        ...(input.subpath ? { subpath: input.subpath } : {}),
+      },
+      responseType: "skills/scan/response",
+      timeout: 120000,
+    });
+  }
+
+  async skillsInstall(input: {
+    source: string;
+    subpath?: string;
+    skillDirs: string[];
+    overwrite?: boolean;
+    requestId?: string;
+  }): Promise<SkillsInstallPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "skills/install",
+        source: input.source,
+        skillDirs: input.skillDirs,
+        ...(input.subpath ? { subpath: input.subpath } : {}),
+        ...(input.overwrite !== undefined ? { overwrite: input.overwrite } : {}),
+      },
+      responseType: "skills/install/response",
+      timeout: 120000,
     });
   }
 

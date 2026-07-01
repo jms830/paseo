@@ -181,6 +181,7 @@ import type { SpeechReadinessSnapshot } from "./speech/speech-runtime.js";
 import type pino from "pino";
 import { FileBackedChatService } from "./chat/chat-service.js";
 import { LoopService } from "./loop-service.js";
+import { SkillsCatalogService } from "./skills-catalog/service.js";
 import { ScheduleService } from "./schedule/service.js";
 import { createGitHubService, type GitHubService } from "../services/github-service.js";
 import type { ProviderUsageService } from "../services/quota-fetcher/service.js";
@@ -440,6 +441,7 @@ export interface SessionOptions {
   providerSnapshotManager: ProviderSnapshotManager;
   providerUsageService: ProviderUsageService;
   serviceProxy?: ServiceProxySubsystem;
+  skillsCatalogService: SkillsCatalogService;
   scriptRuntimeStore?: WorkspaceScriptRuntimeStore;
   workspaceSetupSnapshots?: Map<string, WorkspaceSetupSnapshot>;
   onBranchChanged?: (
@@ -548,6 +550,7 @@ export class Session {
   private readonly workspaceRegistry: WorkspaceRegistry;
   private readonly filesystem: SessionFileSystem;
   private readonly github: GitHubService;
+  private readonly skillsCatalogService: SkillsCatalogService;
   private readonly renameCurrentBranch: typeof renameCurrentBranchDefault;
   private readonly generateWorkspaceName: typeof generateBranchNameFromFirstAgentContext;
   private readonly workspaceGitService: WorkspaceGitService;
@@ -627,6 +630,7 @@ export class Session {
       providerSnapshotManager,
       providerUsageService,
       serviceProxy,
+      skillsCatalogService,
       scriptRuntimeStore,
       workspaceSetupSnapshots,
       onBranchChanged,
@@ -674,6 +678,7 @@ export class Session {
     this.workspaceRegistry = workspaceRegistry;
     this.filesystem = filesystem ?? nodeSessionFileSystem;
     this.github = github ?? createGitHubService();
+    this.skillsCatalogService = skillsCatalogService;
     this.renameCurrentBranch = renameCurrentBranch ?? renameCurrentBranchDefault;
     this.generateWorkspaceName = generateWorkspaceName ?? generateBranchNameFromFirstAgentContext;
     this.workspaceGitService = workspaceGitService;
@@ -1372,6 +1377,7 @@ export class Session {
       this.dispatchProviderMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
       this.dispatchChatScheduleLoopMessage(msg) ??
+      this.dispatchSkillsMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
   }
@@ -1721,6 +1727,103 @@ export class Session {
         return this.chatScheduleLoopSession.handleScheduleUpdateRequest(msg);
       default:
         return undefined;
+    }
+  }
+
+  private dispatchSkillsMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "skills/list":
+        return this.handleSkillsListRequest(msg);
+      case "skills/scan":
+        return this.handleSkillsScanRequest(msg);
+      case "skills/install":
+        return this.handleSkillsInstallRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private async handleSkillsListRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/list" }>,
+  ): Promise<void> {
+    try {
+      const skills = await this.skillsCatalogService.listInstalled();
+      this.emit({
+        type: "skills/list/response",
+        payload: { requestId: request.requestId, skills, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "skills/list/response",
+        payload: {
+          requestId: request.requestId,
+          skills: [],
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleSkillsScanRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/scan" }>,
+  ): Promise<void> {
+    try {
+      const result = await this.skillsCatalogService.scan(request.source, request.subpath);
+      this.emit({
+        type: "skills/scan/response",
+        payload: {
+          requestId: request.requestId,
+          skills: result.ok ? result.skills : [],
+          error: result.ok ? null : result.error,
+        },
+      });
+    } catch (error) {
+      this.emit({
+        type: "skills/scan/response",
+        payload: {
+          requestId: request.requestId,
+          skills: [],
+          error: {
+            kind: "unknown",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        },
+      });
+    }
+  }
+
+  private async handleSkillsInstallRequest(
+    request: Extract<SessionInboundMessage, { type: "skills/install" }>,
+  ): Promise<void> {
+    try {
+      const result = await this.skillsCatalogService.install({
+        source: request.source,
+        subpath: request.subpath,
+        skillDirs: request.skillDirs,
+        overwrite: request.overwrite,
+      });
+      this.emit({
+        type: "skills/install/response",
+        payload: {
+          requestId: request.requestId,
+          installed: result.ok ? result.installed : [],
+          skipped: result.ok ? result.skipped : [],
+          error: result.ok ? null : result.error,
+        },
+      });
+    } catch (error) {
+      this.emit({
+        type: "skills/install/response",
+        payload: {
+          requestId: request.requestId,
+          installed: [],
+          skipped: [],
+          error: {
+            kind: "unknown",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        },
+      });
     }
   }
 

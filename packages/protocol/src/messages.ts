@@ -42,6 +42,14 @@ import {
   ScheduleUpdateResponseSchema,
 } from "@getpaseo/protocol/schedule/rpc-schemas";
 import {
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
+} from "@getpaseo/protocol/skills-catalog/rpc-schemas";
+import {
   LoopRunRequestSchema,
   LoopListRequestSchema,
   LoopInspectRequestSchema,
@@ -2157,6 +2165,9 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   LoopInspectRequestSchema,
   LoopLogsRequestSchema,
   LoopStopRequestSchema,
+  SkillsListRequestSchema,
+  SkillsScanRequestSchema,
+  SkillsInstallRequestSchema,
 ]);
 
 export type SessionInboundMessage = z.infer<typeof SessionInboundMessageSchema>;
@@ -2351,6 +2362,8 @@ export const ServerInfoStatusPayloadSchema = z
         daemonSelfUpdate: z.boolean().optional(),
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: z.boolean().optional(),
+        // COMPAT(skillsCatalog): OpenChamber skills RPCs (skills/list,scan,install); fork feature.
+        skillsCatalog: z.boolean().optional(),
       })
       .optional(),
   })
@@ -4288,6 +4301,9 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   LoopInspectResponseSchema,
   LoopLogsResponseSchema,
   LoopStopResponseSchema,
+  SkillsListResponseSchema,
+  SkillsScanResponseSchema,
+  SkillsInstallResponseSchema,
   DaemonUpdateProgressMessageSchema,
   DaemonUpdateResponseSchema,
 ]);
