@@ -66,6 +66,7 @@ import { AddHostMethodModal } from "@/components/add-host-method-modal";
 import { AddHostModal } from "@/components/add-host-modal";
 import { PairLinkModal } from "@/components/pair-link-modal";
 import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
+import { SnippetsSection } from "@/screens/settings/snippets-section";
 import { Button } from "@/components/ui/button";
 import { CommunityLinks } from "@/components/community-links";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -1378,14 +1379,17 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
       switch (view.section) {
         case "general":
           return (
-            <GeneralSection
-              settings={settings}
-              isDesktopApp={isDesktopApp}
-              handleSendBehaviorChange={handleSendBehaviorChange}
-              handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
-              handleLanguageChange={handleLanguageChange}
-              handleTerminalScrollbackLinesChange={handleTerminalScrollbackLinesChange}
-            />
+            <>
+              <GeneralSection
+                settings={settings}
+                isDesktopApp={isDesktopApp}
+                handleSendBehaviorChange={handleSendBehaviorChange}
+                handleServiceUrlBehaviorChange={handleServiceUrlBehaviorChange}
+                handleLanguageChange={handleLanguageChange}
+                handleTerminalScrollbackLinesChange={handleTerminalScrollbackLinesChange}
+              />
+              <SnippetsSection />
+            </>
           );
         case "daemon":
           return <LocalDaemonSection />;
