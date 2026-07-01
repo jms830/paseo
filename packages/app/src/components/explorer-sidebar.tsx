@@ -33,6 +33,7 @@ import { useExplorerSidebarAnimation } from "@/contexts/explorer-sidebar-animati
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
 import { useToast } from "@/contexts/toast-context";
 import { canCloseRightSidebarGesture } from "@/utils/sidebar-animation-state";
+import { ProjectNotesPanel } from "@/components/project-notes-panel";
 import { HEADER_INNER_HEIGHT } from "@/constants/layout";
 import { GitDiffPane } from "@/git/diff-pane";
 import { FileExplorerPane } from "./file-explorer-pane";
@@ -510,6 +511,13 @@ function ExplorerSidebarContent({
             onTabPress={onTabPress}
             testID="explorer-tab-files"
           />
+          <ExplorerTabButton
+            tab="notes"
+            active={resolvedTab === "notes"}
+            label="Notes"
+            onTabPress={onTabPress}
+            testID="explorer-tab-notes"
+          />
           {isGit && showPrTab && (
             <ExplorerTabButton
               tab="pr"
@@ -554,6 +562,11 @@ function ExplorerSidebarContent({
             onOpenFile={onOpenFile}
           />
         )}
+        <ProjectNotesPanel
+          active={resolvedTab === "notes"}
+          serverId={serverId}
+          cwd={workspaceRoot}
+        />
         {resolvedTab === "pr" && (
           <PrTabContent
             serverId={serverId}
