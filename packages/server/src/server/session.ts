@@ -184,6 +184,7 @@ import { LoopService } from "./loop-service.js";
 import { ScheduleService } from "./schedule/service.js";
 import { createGitHubService, type GitHubService } from "../services/github-service.js";
 import type { ProviderUsageService } from "../services/quota-fetcher/service.js";
+import { TunnelService } from "./tunnel/service.js";
 import {
   summarizeFetchWorkspacesEntries,
   workspaceIdsOnCheckout,
@@ -439,6 +440,7 @@ export interface SessionOptions {
   terminalManager: TerminalManager | null;
   providerSnapshotManager: ProviderSnapshotManager;
   providerUsageService: ProviderUsageService;
+  tunnelService: TunnelService;
   serviceProxy?: ServiceProxySubsystem;
   scriptRuntimeStore?: WorkspaceScriptRuntimeStore;
   workspaceSetupSnapshots?: Map<string, WorkspaceSetupSnapshot>;
@@ -548,6 +550,7 @@ export class Session {
   private readonly workspaceRegistry: WorkspaceRegistry;
   private readonly filesystem: SessionFileSystem;
   private readonly github: GitHubService;
+  private readonly tunnelService: TunnelService;
   private readonly renameCurrentBranch: typeof renameCurrentBranchDefault;
   private readonly generateWorkspaceName: typeof generateBranchNameFromFirstAgentContext;
   private readonly workspaceGitService: WorkspaceGitService;
@@ -626,6 +629,7 @@ export class Session {
       terminalManager,
       providerSnapshotManager,
       providerUsageService,
+      tunnelService,
       serviceProxy,
       scriptRuntimeStore,
       workspaceSetupSnapshots,
@@ -674,6 +678,7 @@ export class Session {
     this.workspaceRegistry = workspaceRegistry;
     this.filesystem = filesystem ?? nodeSessionFileSystem;
     this.github = github ?? createGitHubService();
+    this.tunnelService = tunnelService;
     this.renameCurrentBranch = renameCurrentBranch ?? renameCurrentBranchDefault;
     this.generateWorkspaceName = generateWorkspaceName ?? generateBranchNameFromFirstAgentContext;
     this.workspaceGitService = workspaceGitService;
@@ -1372,6 +1377,7 @@ export class Session {
       this.dispatchProviderMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
       this.dispatchChatScheduleLoopMessage(msg) ??
+      this.dispatchTunnelMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
   }
@@ -1722,6 +1728,72 @@ export class Session {
       default:
         return undefined;
     }
+  }
+
+  private dispatchTunnelMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "tunnel/status":
+        return this.handleTunnelStatusRequest(msg);
+      case "tunnel/start":
+        return this.handleTunnelStartRequest(msg);
+      case "tunnel/stop":
+        return this.handleTunnelStopRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private handleTunnelStatusRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/status" }>,
+  ): Promise<void> {
+    this.emit({
+      type: "tunnel/status/response",
+      payload: { requestId: request.requestId, status: this.tunnelService.status(), error: null },
+    });
+    return Promise.resolve();
+  }
+
+  private async handleTunnelStartRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/start" }>,
+  ): Promise<void> {
+    try {
+      const port = this.getDaemonTcpPort?.() ?? null;
+      if (port === null) {
+        this.emit({
+          type: "tunnel/start/response",
+          payload: {
+            requestId: request.requestId,
+            status: this.tunnelService.status(),
+            error: "This host has no local TCP port to expose.",
+          },
+        });
+        return;
+      }
+      const status = await this.tunnelService.start(port);
+      this.emit({
+        type: "tunnel/start/response",
+        payload: { requestId: request.requestId, status, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "tunnel/start/response",
+        payload: {
+          requestId: request.requestId,
+          status: this.tunnelService.status(),
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private handleTunnelStopRequest(
+    request: Extract<SessionInboundMessage, { type: "tunnel/stop" }>,
+  ): Promise<void> {
+    this.emit({
+      type: "tunnel/stop/response",
+      payload: { requestId: request.requestId, status: this.tunnelService.stop(), error: null },
+    });
+    return Promise.resolve();
   }
 
   private async dispatchMiscMessage(msg: SessionInboundMessage): Promise<void> {

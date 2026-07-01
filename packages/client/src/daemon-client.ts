@@ -420,6 +420,18 @@ type LoopInspectPayload = Extract<
 >["payload"];
 type LoopLogsPayload = Extract<SessionOutboundMessage, { type: "loop/logs/response" }>["payload"];
 type LoopStopPayload = Extract<SessionOutboundMessage, { type: "loop/stop/response" }>["payload"];
+type TunnelStatusPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/status/response" }
+>["payload"];
+type TunnelStartPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/start/response" }
+>["payload"];
+type TunnelStopPayload = Extract<
+  SessionOutboundMessage,
+  { type: "tunnel/stop/response" }
+>["payload"];
 type ScheduleCreatePayload = Extract<
   SessionOutboundMessage,
   { type: "schedule/create/response" }
@@ -4583,6 +4595,33 @@ export class DaemonClient {
         id: normalized.id,
       },
       responseType: "loop/stop/response",
+    });
+  }
+
+  async tunnelStatus(requestId?: string): Promise<TunnelStatusPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/status" },
+      responseType: "tunnel/status/response",
+      timeout: 10000,
+    });
+  }
+
+  async tunnelStart(requestId?: string): Promise<TunnelStartPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/start" },
+      responseType: "tunnel/start/response",
+      timeout: 45000,
+    });
+  }
+
+  async tunnelStop(requestId?: string): Promise<TunnelStopPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "tunnel/stop" },
+      responseType: "tunnel/stop/response",
+      timeout: 10000,
     });
   }
 
