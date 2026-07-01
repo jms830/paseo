@@ -3148,7 +3148,7 @@ export class DaemonClient {
 
   async checkoutCommit(
     cwd: string,
-    input: { message?: string; addAll?: boolean },
+    input: { message?: string; addAll?: boolean; gitmoji?: boolean },
     requestId?: string,
   ): Promise<CheckoutCommitPayload> {
     return this.sendCorrelatedSessionRequest({
@@ -3158,6 +3158,7 @@ export class DaemonClient {
         cwd,
         message: input.message,
         addAll: input.addAll,
+        ...(input.gitmoji !== undefined ? { gitmoji: input.gitmoji } : {}),
       },
       responseType: "checkout_commit_response",
     });
