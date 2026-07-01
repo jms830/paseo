@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 
 import type { Logger } from "pino";
 
+import pLimit from "p-limit";
+
 import { expandTilde } from "../../utils/path.js";
 import { withTimeout } from "../../utils/promise-timeout.js";
 import type {
@@ -38,6 +40,15 @@ const DEFAULT_REFRESH_TIMEOUT_MS = 60_000;
 const DEFAULT_DIAGNOSTIC_TIMEOUT_MS = 120_000;
 const REFRESH_TIMEOUT_ENV_VAR = "PASEO_PROVIDER_REFRESH_TIMEOUT_MS";
 export const GLOBAL_PROVIDER_SNAPSHOT_KEY = "paseo:global";
+
+// MCP-heavy providers (omp/pi with many configured MCP servers, opencode) each
+// spawn an RPC session and connect every configured MCP server during their
+// availability probe. Probing every provider at once starves CPU/IO on smaller
+// hosts, so probes flake with spurious timeouts/crashes; those failures are then
+// cached and gate on-demand model fetches. Bounding probe concurrency keeps the
+// contention low while still populating the snapshot in a few parallel waves
+// rather than fully serially.
+const PROVIDER_PROBE_CONCURRENCY = 2;
 
 // Provider refresh probes can be slow on cold starts (e.g. Copilot's first
 // `copilot --acp` invocation, OpenCode workspace probes with many MCP servers).
@@ -666,8 +677,14 @@ export class ProviderSnapshotManager {
   }
 
   private async loadProviders(options: ProviderLoadOptions): Promise<void> {
-    await Promise.allSettled(
-      options.providers.map((provider) => this.loadProvider({ ...options, provider })),
+    // Bound how many providers probe at once (see PROVIDER_PROBE_CONCURRENCY).
+    // Each probe's own failure is swallowed so one slow/broken provider never
+    // blocks the rest of the snapshot from populating.
+    const limit = pLimit(PROVIDER_PROBE_CONCURRENCY);
+    await Promise.all(
+      options.providers.map((provider) =>
+        limit(() => this.loadProvider({ ...options, provider }).catch(() => undefined)),
+      ),
     );
   }
 
