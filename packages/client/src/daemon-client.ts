@@ -420,6 +420,14 @@ type LoopInspectPayload = Extract<
 >["payload"];
 type LoopLogsPayload = Extract<SessionOutboundMessage, { type: "loop/logs/response" }>["payload"];
 type LoopStopPayload = Extract<SessionOutboundMessage, { type: "loop/stop/response" }>["payload"];
+type GitIdentityGetPayload = Extract<
+  SessionOutboundMessage,
+  { type: "git-identity/get/response" }
+>["payload"];
+type GitIdentitySetPayload = Extract<
+  SessionOutboundMessage,
+  { type: "git-identity/set/response" }
+>["payload"];
 type ScheduleCreatePayload = Extract<
   SessionOutboundMessage,
   { type: "schedule/create/response" }
@@ -4583,6 +4591,37 @@ export class DaemonClient {
         id: normalized.id,
       },
       responseType: "loop/stop/response",
+    });
+  }
+
+  async gitIdentityGet(cwd: string, requestId?: string): Promise<GitIdentityGetPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "git-identity/get",
+        cwd,
+      },
+      responseType: "git-identity/get/response",
+      timeout: 10000,
+    });
+  }
+
+  async gitIdentitySet(input: {
+    cwd: string;
+    name: string;
+    email: string;
+    requestId?: string;
+  }): Promise<GitIdentitySetPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "git-identity/set",
+        cwd: input.cwd,
+        name: input.name,
+        email: input.email,
+      },
+      responseType: "git-identity/set/response",
+      timeout: 15000,
     });
   }
 

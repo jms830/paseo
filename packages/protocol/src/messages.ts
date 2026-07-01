@@ -54,6 +54,12 @@ import {
   LoopStopResponseSchema,
 } from "@getpaseo/protocol/loop/rpc-schemas";
 import {
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
+} from "@getpaseo/protocol/git-identity/rpc-schemas";
+import {
   PaseoConfigRawSchema,
   PaseoLifecycleCommandRawSchema,
   PaseoMetadataGenerationEntrySchema,
@@ -2152,6 +2158,8 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteRequestSchema,
   ScheduleRunOnceRequestSchema,
   ScheduleUpdateRequestSchema,
+  GitIdentityGetRequestSchema,
+  GitIdentitySetRequestSchema,
   LoopRunRequestSchema,
   LoopListRequestSchema,
   LoopInspectRequestSchema,
@@ -2351,6 +2359,8 @@ export const ServerInfoStatusPayloadSchema = z
         daemonSelfUpdate: z.boolean().optional(),
         // COMPAT(agentForkContext): added in v0.1.102, remove gate after 2026-12-28.
         agentForkContext: z.boolean().optional(),
+        // COMPAT(gitIdentity): OpenChamber per-repo git-identity RPCs (git-identity/get,set); fork feature.
+        gitIdentity: z.boolean().optional(),
       })
       .optional(),
   })
@@ -4283,6 +4293,8 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ScheduleDeleteResponseSchema,
   ScheduleRunOnceResponseSchema,
   ScheduleUpdateResponseSchema,
+  GitIdentityGetResponseSchema,
+  GitIdentitySetResponseSchema,
   LoopRunResponseSchema,
   LoopListResponseSchema,
   LoopInspectResponseSchema,

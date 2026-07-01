@@ -184,6 +184,7 @@ import { LoopService } from "./loop-service.js";
 import { ScheduleService } from "./schedule/service.js";
 import { createGitHubService, type GitHubService } from "../services/github-service.js";
 import type { ProviderUsageService } from "../services/quota-fetcher/service.js";
+import { GitIdentityService } from "./git-identity/service.js";
 import {
   summarizeFetchWorkspacesEntries,
   workspaceIdsOnCheckout,
@@ -439,6 +440,7 @@ export interface SessionOptions {
   terminalManager: TerminalManager | null;
   providerSnapshotManager: ProviderSnapshotManager;
   providerUsageService: ProviderUsageService;
+  gitIdentityService: GitIdentityService;
   serviceProxy?: ServiceProxySubsystem;
   scriptRuntimeStore?: WorkspaceScriptRuntimeStore;
   workspaceSetupSnapshots?: Map<string, WorkspaceSetupSnapshot>;
@@ -547,6 +549,7 @@ export class Session {
   private readonly projectRegistry: ProjectRegistry;
   private readonly workspaceRegistry: WorkspaceRegistry;
   private readonly filesystem: SessionFileSystem;
+  private readonly gitIdentityService: GitIdentityService;
   private readonly github: GitHubService;
   private readonly renameCurrentBranch: typeof renameCurrentBranchDefault;
   private readonly generateWorkspaceName: typeof generateBranchNameFromFirstAgentContext;
@@ -626,6 +629,7 @@ export class Session {
       terminalManager,
       providerSnapshotManager,
       providerUsageService,
+      gitIdentityService,
       serviceProxy,
       scriptRuntimeStore,
       workspaceSetupSnapshots,
@@ -673,6 +677,7 @@ export class Session {
     this.projectRegistry = projectRegistry;
     this.workspaceRegistry = workspaceRegistry;
     this.filesystem = filesystem ?? nodeSessionFileSystem;
+    this.gitIdentityService = gitIdentityService;
     this.github = github ?? createGitHubService();
     this.renameCurrentBranch = renameCurrentBranch ?? renameCurrentBranchDefault;
     this.generateWorkspaceName = generateWorkspaceName ?? generateBranchNameFromFirstAgentContext;
@@ -1372,6 +1377,7 @@ export class Session {
       this.dispatchProviderMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
       this.dispatchChatScheduleLoopMessage(msg) ??
+      this.dispatchGitIdentityMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
   }
@@ -1721,6 +1727,60 @@ export class Session {
         return this.chatScheduleLoopSession.handleScheduleUpdateRequest(msg);
       default:
         return undefined;
+    }
+  }
+
+  private dispatchGitIdentityMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "git-identity/get":
+        return this.handleGitIdentityGetRequest(msg);
+      case "git-identity/set":
+        return this.handleGitIdentitySetRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  private async handleGitIdentityGetRequest(
+    request: Extract<SessionInboundMessage, { type: "git-identity/get" }>,
+  ): Promise<void> {
+    try {
+      const identity = await this.gitIdentityService.get(request.cwd);
+      this.emit({
+        type: "git-identity/get/response",
+        payload: { requestId: request.requestId, identity, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "git-identity/get/response",
+        payload: {
+          requestId: request.requestId,
+          identity: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleGitIdentitySetRequest(
+    request: Extract<SessionInboundMessage, { type: "git-identity/set" }>,
+  ): Promise<void> {
+    try {
+      await this.gitIdentityService.set(request.cwd, request.name, request.email);
+      const identity = await this.gitIdentityService.get(request.cwd);
+      this.emit({
+        type: "git-identity/set/response",
+        payload: { requestId: request.requestId, identity, error: null },
+      });
+    } catch (error) {
+      this.emit({
+        type: "git-identity/set/response",
+        payload: {
+          requestId: request.requestId,
+          identity: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
     }
   }
 
